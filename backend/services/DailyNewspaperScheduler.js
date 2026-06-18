@@ -1,6 +1,6 @@
-const cron = require('node-cron');
-const User = require('../models/User');
-const NewspaperEmailService = require('./NewspaperEmailService');
+import cron from 'node-cron';
+import User from '../models/User.js';
+import NewspaperEmailService from './NewspaperEmailService.js';
 
 class DailyNewspaperScheduler {
     constructor() {
@@ -34,4 +34,4 @@ class DailyNewspaperScheduler {
     }
 }
 
-module.exports = new DailyNewspaperScheduler();
+export default new DailyNewspaperScheduler();

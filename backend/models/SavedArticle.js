@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const savedArticleSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -13,4 +13,4 @@ const savedArticleSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now } // Keep for compatibility
 });
 
-module.exports = mongoose.model('SavedArticle', savedArticleSchema);
+export default mongoose.model('SavedArticle', savedArticleSchema);

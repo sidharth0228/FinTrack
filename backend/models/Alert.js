@@ -1,4 +1,5 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
+import EmergencyAlertEmailService from '../services/EmergencyAlertEmailService.js';
 
 const alertSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -13,7 +14,6 @@ const alertSchema = new mongoose.Schema({
 alertSchema.post('save', async function(doc) {
     if (doc.isCritical && !doc.isDismissed) {
         try {
-            const EmergencyAlertEmailService = require('../services/EmergencyAlertEmailService');
             // Trigger emergency email async
             await EmergencyAlertEmailService.sendEmergencyAlertEmail(doc.userId, doc);
         } catch (err) {
@@ -22,4 +22,4 @@ alertSchema.post('save', async function(doc) {
     }
 });
 
-module.exports = mongoose.model('Alert', alertSchema);
+export default mongoose.model('Alert', alertSchema);

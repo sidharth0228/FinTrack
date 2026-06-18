@@ -1,12 +1,12 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const Income = require('../models/Income');
-const Expense = require('../models/Expense');
-const Loan = require('../models/Loan');
-const CreditCard = require('../models/CreditCard');
-const Stock = require('../models/Stock');
-const User = require('../models/User'); // Import User for base income fallback
-const authMiddleware = require('../middleware/authMiddleware');
+import Income from '../models/Income.js';
+import Expense from '../models/Expense.js';
+import Loan from '../models/Loan.js';
+import CreditCard from '../models/CreditCard.js';
+import Stock from '../models/Stock.js';
+import User from '../models/User.js'; // Import User for base income fallback
+import authMiddleware from '../middleware/authMiddleware.js';
 
 // @route   POST /api/health-score
 // @desc    Calculate and return the user's Financial Health Score using backend data and provided local expenses
@@ -124,4 +124,4 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

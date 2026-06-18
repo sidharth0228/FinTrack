@@ -1,11 +1,29 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
-const cors = require('cors');
-const path = require('path');
+import authRouter from './routes/auth.js';
+import expensesRouter from './routes/expenses.js';
+import incomeRouter from './routes/income.js';
+import goalsRouter from './routes/goals.js';
+import budgetRouter from './routes/budget.js';
+import stocksRouter from './routes/stocks.js';
+import userRouter from './routes/user.js';
+import loansRouter from './routes/loans.js';
+import healthScoreRouter from './routes/healthScore.js';
+import newspaperRouter from './routes/newspaper.js';
+import watchlistRouter from './routes/watchlist.js';
+import alertsRouter from './routes/alerts.js';
+import savedArticlesRouter from './routes/savedArticles.js';
+
+import express from 'express';
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import path from 'path';
 
 // Load environment variables
 dotenv.config();
+
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -17,19 +35,19 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '..')));
 
 // Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/expenses', require('./routes/expenses'));
-app.use('/api/income', require('./routes/income'));
-app.use('/api/goals', require('./routes/goals'));
-app.use('/api/budget', require('./routes/budget'));
-app.use('/api/stocks', require('./routes/stocks'));
-app.use('/api/user', require('./routes/user'));
-app.use('/api/loans', require('./routes/loans'));
-app.use('/api/health-score', require('./routes/healthScore'));
-app.use('/api/newspaper', require('./routes/newspaper'));
-app.use('/api/watchlist', require('./routes/watchlist'));
-app.use('/api/alerts', require('./routes/alerts'));
-app.use('/api/newspaper/saved', require('./routes/savedArticles'));
+app.use('/api/auth', authRouter);
+app.use('/api/expenses', expensesRouter);
+app.use('/api/income', incomeRouter);
+app.use('/api/goals', goalsRouter);
+app.use('/api/budget', budgetRouter);
+app.use('/api/stocks', stocksRouter);
+app.use('/api/user', userRouter);
+app.use('/api/loans', loansRouter);
+app.use('/api/health-score', healthScoreRouter);
+app.use('/api/newspaper', newspaperRouter);
+app.use('/api/watchlist', watchlistRouter);
+app.use('/api/alerts', alertsRouter);
+app.use('/api/newspaper/saved', savedArticlesRouter);
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI)
@@ -40,13 +58,13 @@ mongoose.connect(process.env.MONGO_URI)
     });
 
 // Initialize Cron Jobs for Email Notifications and EMI Automation
-const { startMonitorSpendingCron, startMonthlySummaryCron, startLoanEMICron, startCreditCardPaymentCron } = require('./utils/cronJobs');
+import { startMonitorSpendingCron, startMonthlySummaryCron, startLoanEMICron, startCreditCardPaymentCron } from './utils/cronJobs.js';
 startMonitorSpendingCron();
 startMonthlySummaryCron();
 startLoanEMICron();
 startCreditCardPaymentCron();
 
-const DailyNewspaperScheduler = require('./services/DailyNewspaperScheduler');
+import DailyNewspaperScheduler from './services/DailyNewspaperScheduler.js';
 DailyNewspaperScheduler.start();
 
 // Start Server

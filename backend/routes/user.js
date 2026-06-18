@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const User = require('../models/User');
-const authMiddleware = require('../middleware/authMiddleware');
+import User from '../models/User.js';
+import authMiddleware from '../middleware/authMiddleware.js';
 
 // @route   PATCH /api/user/income
 // @desc    Update user's base expected income
@@ -94,4 +94,4 @@ router.put('/settings', authMiddleware, async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

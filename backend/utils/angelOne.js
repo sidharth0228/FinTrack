@@ -1,5 +1,5 @@
-const { SmartAPI } = require('smartapi-javascript');
-const { authenticator } = require('otplib');
+import { SmartAPI } from 'smartapi-javascript';
+import { generate } from 'otplib';
 
 const getAngelOneHoldings = async (passedApiKey) => {
     const clientCode = process.env.ANGEL_ONE_CLIENT_ID;
@@ -17,7 +17,7 @@ const getAngelOneHoldings = async (passedApiKey) => {
 
     try {
         // Generate TOTP
-        const totp = authenticator.generate(totpSecret);
+        const totp = await generate({ secret: totpSecret });
 
         const session = await smart_api.generateSession(clientCode, password, totp);
         if (!session.status) {
@@ -36,4 +36,4 @@ const getAngelOneHoldings = async (passedApiKey) => {
     }
 };
 
-module.exports = { getAngelOneHoldings };
+export { getAngelOneHoldings };

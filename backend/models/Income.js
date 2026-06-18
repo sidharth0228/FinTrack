@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const incomeSchema = new mongoose.Schema({
     userId: {
@@ -24,4 +24,4 @@ const incomeSchema = new mongoose.Schema({
     }
 });
 
-module.exports = mongoose.model('Income', incomeSchema);
+export default mongoose.model('Income', incomeSchema);

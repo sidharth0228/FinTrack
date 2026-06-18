@@ -1,9 +1,11 @@
-const Portfolio = require('../models/Portfolio');
-const Stock = require('../models/Stock');
-const MutualFund = require('../models/MutualFund');
-const Property = require('../models/Property');
-const { getAngelOneHoldings } = require('../utils/angelOne');
-const { generateAIReport } = require('../utils/aiReport');
+import Portfolio from '../models/Portfolio.js';
+import Stock from '../models/Stock.js';
+import MutualFund from '../models/MutualFund.js';
+import Property from '../models/Property.js';
+import { getAngelOneHoldings } from '../utils/angelOne.js';
+import { generateAIReport } from '../utils/aiReport.js';
+
+const exports = {};
 
 exports.syncPortfolio = async (req, res) => {
     try {
@@ -215,3 +217,19 @@ exports.deleteProperty = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+export default exports;
+export const {
+    syncPortfolio,
+    getPortfolio,
+    addManualStock,
+    addMutualFund,
+    addProperty,
+    getAIReport,
+    updateManualStock,
+    deleteManualStock,
+    updateMutualFund,
+    deleteMutualFund,
+    updateProperty,
+    deleteProperty
+} = exports;

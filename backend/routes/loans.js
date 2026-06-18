@@ -1,9 +1,9 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const Loan = require('../models/Loan');
-const CreditCard = require('../models/CreditCard');
-const Budget = require('../models/Budget');
-const authMiddleware = require('../middleware/authMiddleware');
+import Loan from '../models/Loan.js';
+import CreditCard from '../models/CreditCard.js';
+import Budget from '../models/Budget.js';
+import authMiddleware from '../middleware/authMiddleware.js';
 
 // Helper to calculate debt/loan details using mathematical formulas
 const calculateDebtDetails = (principal, rate, tenureMonths, interestType) => {
@@ -413,4 +413,4 @@ router.delete('/cards/:id', authMiddleware, async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

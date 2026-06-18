@@ -1,10 +1,10 @@
-const cron = require('node-cron');
-const User = require('../models/User');
-const Expense = require('../models/Expense');
-const Budget = require('../models/Budget');
-const Income = require('../models/Income');
-const Loan = require('../models/Loan');
-const { sendEmail, getBudgetAlertTemplate, getMonthlySummaryTemplate } = require('../utils/emailService');
+import cron from 'node-cron';
+import User from '../models/User.js';
+import Expense from '../models/Expense.js';
+import Budget from '../models/Budget.js';
+import Income from '../models/Income.js';
+import Loan from '../models/Loan.js';
+import { sendEmail, getBudgetAlertTemplate, getMonthlySummaryTemplate } from '../utils/emailService.js';
 
 // Helper to get current month period
 const getCurrentMonthRange = () => {
@@ -170,7 +170,7 @@ const startLoanEMICron = () => {
 
 // 4. Automated Credit Card Payment Job
 // Runs daily at 02:00 AM to check for due dates
-const CreditCard = require('../models/CreditCard');
+import CreditCard from '../models/CreditCard.js';
 
 const startCreditCardPaymentCron = () => {
     cron.schedule('0 2 * * *', async () => {
@@ -217,9 +217,7 @@ const startCreditCardPaymentCron = () => {
             });
         };
 
-        module.exports = {
-            startMonitorSpendingCron,
+        export { startMonitorSpendingCron,
             startMonthlySummaryCron,
             startLoanEMICron,
-            startCreditCardPaymentCron
-        }
+            startCreditCardPaymentCron };

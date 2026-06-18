@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const Income = require('../models/Income');
-const authMiddleware = require('../middleware/authMiddleware');
+import Income from '../models/Income.js';
+import authMiddleware from '../middleware/authMiddleware.js';
 
 // @route   GET /api/income
 // @desc    Get user's income
@@ -56,4 +56,4 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

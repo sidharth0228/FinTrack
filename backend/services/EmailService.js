@@ -1,6 +1,6 @@
-const nodemailer = require('nodemailer');
-const NewspaperEmailLog = require('../models/NewspaperEmailLog');
-require('dotenv').config();
+import nodemailer from 'nodemailer';
+import NewspaperEmailLog from '../models/NewspaperEmailLog.js';
+import 'dotenv/config';
 
 class EmailService {
     constructor() {
@@ -83,4 +83,4 @@ class EmailService {
     }
 }
 
-module.exports = new EmailService();
+export default new EmailService();

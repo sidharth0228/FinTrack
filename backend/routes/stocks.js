@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const authMiddleware = require('../middleware/authMiddleware');
-const stocksController = require('../controllers/stocksController');
+import authMiddleware from '../middleware/authMiddleware.js';
+import stocksController from '../controllers/stocksController.js';
 
 router.post('/sync', authMiddleware, stocksController.syncPortfolio);
 router.get('/', authMiddleware, stocksController.getPortfolio);
@@ -20,4 +20,4 @@ router.post('/property', authMiddleware, stocksController.addProperty);
 router.put('/property/:id', authMiddleware, stocksController.updateProperty);
 router.delete('/property/:id', authMiddleware, stocksController.deleteProperty);
 
-module.exports = router;
+export default router;

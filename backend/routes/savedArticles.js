@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const SavedArticle = require('../models/SavedArticle');
-const authMiddleware = require('../middleware/authMiddleware');
+import SavedArticle from '../models/SavedArticle.js';
+import authMiddleware from '../middleware/authMiddleware.js';
 
 // @route   GET /api/newspaper/saved
 // @desc    Get user's bookmarked newspaper articles
@@ -61,4 +61,4 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

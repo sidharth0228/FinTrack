@@ -52,4 +52,4 @@ const generateAIReport = async (portfolio) => {
     }
 };
 
-module.exports = { generateAIReport };
+export { generateAIReport };

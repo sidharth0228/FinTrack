@@ -1,5 +1,5 @@
-const EmailService = require('./EmailService');
-const User = require('../models/User');
+import EmailService from './EmailService.js';
+import User from '../models/User.js';
 
 class EmergencyAlertEmailService {
     async sendEmergencyAlertEmail(userId, alertDoc) {
@@ -108,4 +108,4 @@ class EmergencyAlertEmailService {
     }
 }
 
-module.exports = new EmergencyAlertEmailService();
+export default new EmergencyAlertEmailService();

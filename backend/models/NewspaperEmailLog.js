@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const newspaperEmailLogSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -10,4 +10,4 @@ const newspaperEmailLogSchema = new mongoose.Schema({
     attempts: { type: Number, default: 1 }
 });
 
-module.exports = mongoose.model('NewspaperEmailLog', newspaperEmailLogSchema);
+export default mongoose.model('NewspaperEmailLog', newspaperEmailLogSchema);

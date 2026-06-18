@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const Watchlist = require('../models/Watchlist');
-const authMiddleware = require('../middleware/authMiddleware');
+import Watchlist from '../models/Watchlist.js';
+import authMiddleware from '../middleware/authMiddleware.js';
 
 // @route   GET /api/watchlist
 // @desc    Get user's watchlist
@@ -80,4 +80,4 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

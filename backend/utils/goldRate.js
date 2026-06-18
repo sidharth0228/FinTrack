@@ -1,4 +1,4 @@
-const axios = require('axios'); // Optional if we use fetch natively (Node 18+)
+import axios from 'axios'; // Optional if we use fetch natively (Node 18+)
 
 let cachedGoldPricePerGram = 7250;
 let lastFetchTime = 0;
@@ -32,4 +32,4 @@ async function getLiveGoldPrice() {
     }
 }
 
-module.exports = { getLiveGoldPrice };
+export { getLiveGoldPrice };

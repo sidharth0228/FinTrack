@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const Expense = require('../models/Expense');
-const authMiddleware = require('../middleware/authMiddleware');
+import Expense from '../models/Expense.js';
+import authMiddleware from '../middleware/authMiddleware.js';
 
 // @route   GET /api/expenses
 // @desc    Get user's expenses
@@ -99,4 +99,4 @@ router.delete('/category/:category', authMiddleware, async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

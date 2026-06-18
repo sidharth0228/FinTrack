@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const CreditCardSchema = new mongoose.Schema({
     userId: {
@@ -37,4 +37,4 @@ const CreditCardSchema = new mongoose.Schema({
     }
 });
 
-module.exports = mongoose.model('CreditCard', CreditCardSchema);
+export default mongoose.model('CreditCard', CreditCardSchema);

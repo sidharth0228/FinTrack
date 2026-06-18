@@ -1,8 +1,8 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const Goal = require('../models/Goal');
-const Expense = require('../models/Expense');
-const authMiddleware = require('../middleware/authMiddleware');
+import Goal from '../models/Goal.js';
+import Expense from '../models/Expense.js';
+import authMiddleware from '../middleware/authMiddleware.js';
 
 // @route   GET /api/goals
 // @desc    Get user's goals
@@ -85,4 +85,4 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

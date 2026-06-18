@@ -1,13 +1,13 @@
-const EmailService = require('./EmailService');
-const Portfolio = require('../models/Portfolio');
-const Stock = require('../models/Stock');
-const MutualFund = require('../models/MutualFund');
-const Property = require('../models/Property');
-const Loan = require('../models/Loan');
-const Watchlist = require('../models/Watchlist');
-const NewspaperRefresh = require('../models/NewspaperRefresh');
-const { compileNewspaperEdition } = require('../controllers/newspaperController');
-const User = require('../models/User');
+import EmailService from './EmailService.js';
+import Portfolio from '../models/Portfolio.js';
+import Stock from '../models/Stock.js';
+import MutualFund from '../models/MutualFund.js';
+import Property from '../models/Property.js';
+import Loan from '../models/Loan.js';
+import Watchlist from '../models/Watchlist.js';
+import NewspaperRefresh from '../models/NewspaperRefresh.js';
+import { compileNewspaperEdition } from '../controllers/newspaperController.js';
+import User from '../models/User.js';
 
 class NewspaperEmailService {
     async sendDailyNewspaperForUser(userId) {
@@ -271,4 +271,4 @@ class NewspaperEmailService {
     }
 }
 
-module.exports = new NewspaperEmailService();
+export default new NewspaperEmailService();

@@ -1,11 +1,11 @@
-const Portfolio = require('../models/Portfolio');
-const Stock = require('../models/Stock');
-const MutualFund = require('../models/MutualFund');
-const Property = require('../models/Property');
-const Loan = require('../models/Loan');
-const Alert = require('../models/Alert');
-const Watchlist = require('../models/Watchlist');
-const NewspaperRefresh = require('../models/NewspaperRefresh');
+import Portfolio from '../models/Portfolio.js';
+import Stock from '../models/Stock.js';
+import MutualFund from '../models/MutualFund.js';
+import Property from '../models/Property.js';
+import Loan from '../models/Loan.js';
+import Alert from '../models/Alert.js';
+import Watchlist from '../models/Watchlist.js';
+import NewspaperRefresh from '../models/NewspaperRefresh.js';
 
 // Helper to generate a realistic random change percentage
 function getRandomChange(min, max) {
@@ -14,7 +14,7 @@ function getRandomChange(min, max) {
 }
 
 // Controller to get dynamic financial newspaper content
-exports.getNewspaper = async (req, res) => {
+const getNewspaper = async (req, res) => {
     try {
         const userId = req.user.id;
 
@@ -86,7 +86,7 @@ exports.getNewspaper = async (req, res) => {
 };
 
 // Controller to manually refresh newspaper content
-exports.refreshNewspaper = async (req, res) => {
+const refreshNewspaper = async (req, res) => {
     try {
         const userId = req.user.id;
         const triggerEmergency = req.body && req.body.triggerEmergency === true;
@@ -346,4 +346,9 @@ async function compileNewspaperEdition(userId, holdings, userWatchlist, isEmerge
     return result;
 }
 
-exports.compileNewspaperEdition = compileNewspaperEdition;
+export { getNewspaper, refreshNewspaper, compileNewspaperEdition };
+export default {
+    getNewspaper,
+    refreshNewspaper,
+    compileNewspaperEdition
+};

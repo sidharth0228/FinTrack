@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const newspaperRefreshSchema = new mongoose.Schema({
     userId: {
@@ -83,4 +83,4 @@ const newspaperRefreshSchema = new mongoose.Schema({
     }
 });
 
-module.exports = mongoose.model('NewspaperRefresh', newspaperRefreshSchema);
+export default mongoose.model('NewspaperRefresh', newspaperRefreshSchema);

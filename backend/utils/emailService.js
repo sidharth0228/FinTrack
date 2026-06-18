@@ -1,7 +1,7 @@
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
 // Ensure environment variables are loaded
-require('dotenv').config();
+import 'dotenv/config';
 
 const transporter = nodemailer.createTransport({
     service: 'gmail', // Standard service
@@ -123,8 +123,6 @@ const getMonthlySummaryTemplate = (userName, totalIncome, totalExpenses) => {
     `;
 };
 
-module.exports = {
-    sendEmail,
+export { sendEmail,
     getBudgetAlertTemplate,
-    getMonthlySummaryTemplate
-};
+    getMonthlySummaryTemplate };

@@ -1,4 +1,4 @@
-const https = require('https');
+import https from 'https';
 let instruments = [];
 
 async function loadInstruments() {
@@ -41,4 +41,4 @@ function searchInstruments(query) {
     return unique.slice(0, 15);
 }
 
-module.exports = { loadInstruments, searchInstruments, get instruments() { return instruments; } };
+export { loadInstruments, searchInstruments, instruments };

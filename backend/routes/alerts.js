@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const Alert = require('../models/Alert');
-const authMiddleware = require('../middleware/authMiddleware');
+import Alert from '../models/Alert.js';
+import authMiddleware from '../middleware/authMiddleware.js';
 
 // @route   GET /api/alerts
 // @desc    Get user's active alerts (non-dismissed)
@@ -88,4 +88,4 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;
