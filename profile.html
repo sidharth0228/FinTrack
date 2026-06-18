@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script>
+        (function() {
+            if (localStorage.getItem('dark-mode') === 'enabled') {
+                document.documentElement.classList.add('dark-mode');
+            }
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Settings - FinTrack</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const themeToggle = document.getElementById('theme-toggle');
+            if (themeToggle) {
+                const updateIcon = (isDark) => {
+                    themeToggle.innerHTML = isDark 
+                        ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`
+                        : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+                };
+
+                updateIcon(document.documentElement.classList.contains('dark-mode'));
+
+                themeToggle.addEventListener('click', () => {
+                    document.documentElement.classList.toggle('dark-mode');
+                    const isDark = document.documentElement.classList.contains('dark-mode');
+                    localStorage.setItem('dark-mode', isDark ? 'enabled' : 'disabled');
+                    updateIcon(isDark);
+                });
+            }
+
+            // Sync User Info
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (user) {
+                if (document.querySelector('.avatar')) {
+                    document.querySelector('.avatar').innerText = user.name.split(' ').map(n => n[0]).join('').toUpperCase();
+                }
+                // Fill profile form
+                if (document.getElementById('profile-name')) document.getElementById('profile-name').value = user.name;
+                if (document.getElementById('profile-email')) document.getElementById('profile-email').value = user.email;
+                if (document.getElementById('large-avatar')) {
+                    document.getElementById('large-avatar').innerText = user.name.split(' ').map(n => n[0]).join('').toUpperCase();
+                }
+            }
+
+            // Load Newspaper Notifications Settings
+            async function loadNotificationSettings() {
+                try {
+                    const token = localStorage.getItem('token');
+                    const res = await fetch('/api/user/settings', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const settings = await res.json();
+                        if (document.getElementById('newspaper-email')) {
+                            document.getElementById('newspaper-email').value = settings.newspaperEmailAddress || '';
+                        }
+                        if (document.getElementById('daily-newspaper-toggle')) {
+                            document.getElementById('daily-newspaper-toggle').checked = settings.dailyNewspaperEnabled;
+                        }
+                        if (document.getElementById('emergency-alerts-toggle')) {
+                            document.getElementById('emergency-alerts-toggle').checked = settings.emergencyAlertsEnabled;
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error loading notification settings:', err);
+                }
+            }
+
+            loadNotificationSettings();
+
+            // Save Newspaper Notifications Settings
+            const saveNotificationsBtn = document.getElementById('save-notifications-btn');
+            if (saveNotificationsBtn) {
+                saveNotificationsBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    saveNotificationsBtn.disabled = true;
+                    saveNotificationsBtn.innerText = 'Saving...';
+
+                    const email = document.getElementById('newspaper-email').value;
+                    const daily = document.getElementById('daily-newspaper-toggle').checked;
+                    const emergency = document.getElementById('emergency-alerts-toggle').checked;
+
+                    try {
+                        const token = localStorage.getItem('token');
+                        const res = await fetch('/api/user/settings', {
+                            method: 'PUT',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                newspaperEmailAddress: email,
+                                dailyNewspaperEnabled: daily,
+                                emergencyAlertsEnabled: emergency
+                            })
+                        });
+
+                        if (res.ok) {
+                            alert('Notification settings saved successfully!');
+                        } else {
+                            const data = await res.json();
+                            alert(data.message || 'Failed to save settings');
+                        }
+                    } catch (err) {
+                        console.error('Error saving settings:', err);
+                        alert('Network error while saving settings');
+                    } finally {
+                        saveNotificationsBtn.disabled = false;
+                        saveNotificationsBtn.innerText = 'Save Settings';
+                    }
+                });
+            }
+
+            // Handle Logout
+            document.querySelectorAll('a').forEach(link => {
+                if (link.innerText.includes('Log Out')) {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                        window.location.href = 'login.html';
+                    });
+                }
+            });
+        });
+    </script>
+    <script src="navigation.js" defer></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="page-title">Profile & Settings</div>
+                <div class="user-profile">
+                    <button id="theme-toggle" class="theme-toggle" title="Toggle Dark Mode" aria-label="Toggle Theme">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                    </button>
+                    <div class="avatar">
+                        JD
+                    </div>
+                </div>
+            </header>
+
+            <!-- Profile Content -->
+            <div class="content-wrapper">
+                <div class="grid grid-cols-3 gap-6">
+                    <!-- Profile Info -->
+                    <div class="card col-span-2">
+                        <div class="card-header border-b pb-4 mb-6"
+                            style="border-bottom: 1px solid var(--border-color);">
+                            <h3 class="card-title">Personal Information</h3>
+                        </div>
+
+                        <div class="flex items-center gap-6 mb-8">
+                            <div id="large-avatar"
+                                style="width: 100px; height: 100px; border-radius: 50%; background: var(--primary-light); color: var(--primary-color); display: flex; align-items: center; justify-content: center; font-size: 2.5rem; font-weight: bold; border: 4px solid var(--border-color);">
+                                JD
+                            </div>
+                            <div>
+                                <button class="btn btn-outline mb-2">Change Avatar</button>
+                                <p class="text-xs text-muted">JPG, GIF or PNG. Max size of 800K</p>
+                            </div>
+                        </div>
+
+                        <form class="grid grid-cols-2 gap-4">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium mb-1">Full Name</label>
+                                <input id="profile-name" type="text" class="form-input" placeholder="John Doe"
+                                    style="width: 100%;">
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium mb-1">Email Address</label>
+                                <input id="profile-email" type="email" class="form-input" placeholder="john@example.com"
+                                    style="width: 100%;">
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium mb-1">Phone Number</label>
+                                <input type="text" class="form-input" placeholder="+1 (555) 000-0000"
+                                    style="width: 100%;">
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium mb-1">Location</label>
+                                <input type="text" class="form-input" placeholder="Mumbai, India" style="width: 100%;">
+                            </div>
+                            <div class="col-span-2 mt-4">
+                                <button type="submit" class="btn btn-primary">Save Changes</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Side Settings -->
+                    <div class="flex flex-col gap-6">
+                        <div class="card">
+                            <div class="card-header border-b pb-4 mb-4"
+                                style="border-bottom: 1px solid var(--border-color);">
+                                <h3 class="card-title">Security</h3>
+                            </div>
+                            <button class="btn btn-outline w-full justify-start gap-2 mb-2">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                </svg>
+                                Change Password
+                            </button>
+                            <button class="btn btn-outline w-full justify-start gap-2">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                </svg>
+                                Two-Factor Auth
+                            </button>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header border-b pb-4 mb-4"
+                                style="border-bottom: 1px solid var(--border-color);">
+                                <h3 class="card-title">Preferences</h3>
+                            </div>
+                            <div class="flex justify-between items-center mb-4">
+                                <span class="text-sm">Email Notifications</span>
+                                <div
+                                    style="width: 40px; height: 20px; background: var(--primary-color); border-radius: 10px; position: relative; cursor: pointer;">
+                                    <div
+                                        style="width: 16px; height: 16px; background: white; border-radius: 50%; position: absolute; right: 2px; top: 2px;">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center mb-4">
+                                <span class="text-sm">Currency Display</span>
+                                <span class="text-xs font-bold">INR (₹)</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm">Language</span>
+                                <span class="text-xs font-bold">English</span>
+                            </div>
+                        </div>
+
+                        <!-- Newspaper Notifications Settings Card -->
+                        <div class="card" id="notifications-settings-card">
+                            <div class="card-header border-b pb-4 mb-4"
+                                style="border-bottom: 1px solid var(--border-color);">
+                                <h3 class="card-title">Newspaper & Alerts</h3>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1" style="font-weight: 500; font-size: 0.85rem; color: var(--text-primary);">Notification Email Address</label>
+                                    <input id="newspaper-email" type="email" class="form-input" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--surface-color); color: var(--text-primary);" placeholder="sidharthsahoo2005@gmail.com">
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 4px;">
+                                    <span class="text-sm" style="font-size: 0.85rem;">Daily Newspaper Email</span>
+                                    <input type="checkbox" id="daily-newspaper-toggle" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-color);">
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 4px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 4px;">
+                                    <span class="text-sm" style="font-size: 0.85rem;">Emergency Alert Emails</span>
+                                    <input type="checkbox" id="emergency-alerts-toggle" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-color);">
+                                </div>
+                                <button id="save-notifications-btn" class="btn btn-primary w-full" style="padding: 10px; width: 100%; font-weight: 600;">Save Settings</button>
+                            </div>
+                        </div>
+
+                        <div class="card" style="border: 1px solid var(--danger); background: rgba(239, 68, 68, 0.05);">
+                            <h3 class="font-bold text-danger mb-2">Danger Zone</h3>
+                            <p class="text-xs text-muted mb-4">Permanently delete your account and all financial data.
+                            </p>
+                            <button class="btn btn-primary" style="background: var(--danger);">Delete Account</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+
+</html>

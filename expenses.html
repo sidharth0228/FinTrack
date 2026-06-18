@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script>
+        (function() {
+            if (localStorage.getItem('dark-mode') === 'enabled') {
+                document.documentElement.classList.add('dark-mode');
+            }
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker - FinTrack</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('token');
+            if (!token && window.location.hostname !== 'localhost' && window.location.protocol !== 'file:') {
+                // Ignore for local preview without backend
+            }
+
+            const themeToggle = document.getElementById('theme-toggle');
+            if (themeToggle) {
+                const updateIcon = (isDark) => {
+                    themeToggle.innerHTML = isDark 
+                        ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`
+                        : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+                };
+
+                updateIcon(document.documentElement.classList.contains('dark-mode'));
+
+                themeToggle.addEventListener('click', () => {
+                    document.documentElement.classList.toggle('dark-mode');
+                    const isDark = document.documentElement.classList.contains('dark-mode');
+                    localStorage.setItem('dark-mode', isDark ? 'enabled' : 'disabled');
+                    updateIcon(isDark);
+                });
+            }
+
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (user && document.querySelector('.avatar')) {
+                document.querySelector('.avatar').innerText = user.name.split(' ').map(n => n[0]).join('').toUpperCase();
+            }
+
+            document.querySelectorAll('a').forEach(link => {
+                if (link.innerText.includes('Log Out')) {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                        window.location.href = 'login.html';
+                    });
+                }
+            });
+
+            fetchExpenses();
+            document.getElementById('expense-search')?.addEventListener('input', () => filterAndRenderTable());
+            document.getElementById('expense-category-filter')?.addEventListener('change', () => filterAndRenderTable());
+        });
+
+        const colors = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#14B8A6', '#EAB308', '#EC4899'];
+        let activeExpensesGlobal = [];
+
+        async function fetchExpenses() {
+            let expenses = [];
+            const token = localStorage.getItem('token');
+            if (token) {
+                try {
+                    const res = await fetch('/api/expenses', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        expenses = data.map(e => ({...e, id: e._id || e.id}));
+                        localStorage.setItem('localExpenses', JSON.stringify(expenses));
+                    } else {
+                        expenses = JSON.parse(localStorage.getItem('localExpenses') || '[]');
+                    }
+                } catch (e) {
+                    console.error('Error fetching expenses from server', e);
+                    expenses = JSON.parse(localStorage.getItem('localExpenses') || '[]');
+                }
+            } else {
+                expenses = JSON.parse(localStorage.getItem('localExpenses') || '[]');
+            }
+            
+            activeExpensesGlobal = expenses;
+
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            
+            let lastMonthIndex = currentMonth - 1;
+            let lastMonthYear = currentYear;
+            if (lastMonthIndex < 0) {
+                lastMonthIndex = 11;
+                lastMonthYear = currentYear - 1;
+            }
+
+            let thisMonthTotal = 0;
+            let lastMonthTotal = 0;
+            let categories = {};
+
+            expenses.forEach(exp => {
+                const d = new Date(exp.date);
+                if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+                    thisMonthTotal += exp.amount;
+                    categories[exp.category] = (categories[exp.category] || 0) + exp.amount;
+                } else if (d.getMonth() === lastMonthIndex && d.getFullYear() === lastMonthYear) {
+                    lastMonthTotal += exp.amount;
+                }
+            });
+
+            filterAndRenderTable();
+
+            document.getElementById('total-spent').innerText = `₹${thisMonthTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+
+            let topCat = "None";
+            let topCatVal = 0;
+            let sortedCats = Object.entries(categories).sort((a,b) => b[1] - a[1]);
+            if (sortedCats.length > 0) {
+                topCat = sortedCats[0][0];
+                topCatVal = sortedCats[0][1];
+            }
+            let topCatPct = thisMonthTotal > 0 ? ((topCatVal / thisMonthTotal) * 100).toFixed(0) : 0;
+            document.getElementById('top-category-name').innerText = topCat;
+            document.getElementById('top-category-val').innerText = `₹${topCatVal.toLocaleString('en-IN')} (${topCatPct}%)`;
+
+            let diff = thisMonthTotal - lastMonthTotal;
+            let percentChange = lastMonthTotal > 0 ? (diff / lastMonthTotal) * 100 : (thisMonthTotal > 0 ? 100 : 0);
+            let dirStr = percentChange >= 0 ? 'Increase' : 'Decrease';
+            let arrow = percentChange >= 0 ? '↑' : '↓';
+            let diffCls = percentChange > 0 ? 'text-danger' : 'text-success';
+            
+            document.getElementById('comparison-val').innerText = `${percentChange > 0 ? '+' : ''}₹${Math.abs(diff).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+            document.getElementById('comparison-val').className = `text-xl font-bold mb-1 ${diffCls}`;
+            
+            document.getElementById('comparison-pct').innerText = `${arrow} ${Math.abs(percentChange).toFixed(1)}% ${dirStr}`;
+            document.getElementById('comparison-pct').className = `text-sm ${diffCls}`;
+
+            let gradientStops = [];
+            let currentPct = 0;
+            
+            sortedCats.forEach((c, idx) => {
+                let pctStep = (c[1] / thisMonthTotal) * 100;
+                let nextPct = currentPct + pctStep;
+                let color = colors[idx % colors.length];
+                gradientStops.push(`${color} ${currentPct}% ${nextPct}%`);
+                currentPct = nextPct;
+            });
+
+            let pieChart = document.getElementById('pie-chart');
+            if (gradientStops.length > 0) {
+                pieChart.style.background = `conic-gradient(${gradientStops.join(', ')})`;
+            } else {
+                pieChart.style.background = '#E2E8F0';
+            }
+
+            localStorage.setItem('localExpenses', JSON.stringify(expenses));
+            window.dispatchEvent(new Event('expensesUpdated'));
+        }
+
+        function showAddExpensePrompt() {
+            document.getElementById('add-exp-date').value = new Date().toISOString().substring(0, 10);
+            document.getElementById('addExpenseModal').style.display = 'flex';
+        }
+
+        function closeAddExpenseModal() {
+            document.getElementById('addExpenseModal').style.display = 'none';
+            document.getElementById('addExpenseForm').reset();
+        }
+
+        async function handleAddExpenseSubmit(e) {
+            e.preventDefault();
+            const title = document.getElementById('add-exp-title').value;
+            const amount = parseFloat(document.getElementById('add-exp-amount').value);
+            const category = document.getElementById('add-exp-category').value;
+            const date = new Date(document.getElementById('add-exp-date').value).toISOString();
+
+            if (!title || isNaN(amount) || amount <= 0) return;
+
+            const expData = { title, amount, category, date };
+            const token = localStorage.getItem('token');
+
+            try {
+                const res = await fetch('/api/expenses', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(expData)
+                });
+                if (res.ok) {
+                    closeAddExpenseModal();
+                    fetchExpenses();
+                } else {
+                    const data = await res.json();
+                    alert('Error: ' + data.message);
+                }
+            } catch (err) {
+                alert('Connection error');
+            }
+        }
+
+        function editExpense(id) {
+            const exp = activeExpensesGlobal.find(e => e.id === id);
+            if (exp) {
+                document.getElementById('edit-exp-id').value = id;
+                document.getElementById('edit-exp-title').value = exp.title;
+                document.getElementById('edit-exp-amount').value = exp.amount;
+                document.getElementById('edit-exp-category').value = exp.category;
+                document.getElementById('edit-exp-date').value = new Date(exp.date).toISOString().substring(0, 10);
+                document.getElementById('editExpenseModal').style.display = 'flex';
+            }
+        }
+
+        function closeEditExpenseModal() {
+            document.getElementById('editExpenseModal').style.display = 'none';
+            document.getElementById('editExpenseForm').reset();
+        }
+
+        async function handleEditExpenseSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit-exp-id').value;
+            const title = document.getElementById('edit-exp-title').value;
+            const amount = parseFloat(document.getElementById('edit-exp-amount').value);
+            const category = document.getElementById('edit-exp-category').value;
+            const date = new Date(document.getElementById('edit-exp-date').value).toISOString();
+
+            if (!title || isNaN(amount) || amount <= 0) return;
+
+            const expData = { title, amount, category, date };
+            const token = localStorage.getItem('token');
+
+            try {
+                const res = await fetch(`/api/expenses/${id}`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(expData)
+                });
+                if (res.ok) {
+                    closeEditExpenseModal();
+                    fetchExpenses();
+                } else {
+                    const data = await res.json();
+                    alert('Error: ' + data.message);
+                }
+            } catch (err) {
+                alert('Connection error');
+            }
+        }
+
+        function deleteExpense(id) {
+            document.getElementById('delete-exp-id').value = id;
+            document.getElementById('deleteConfirmModal').style.display = 'flex';
+        }
+
+        function closeDeleteConfirmModal() {
+            document.getElementById('deleteConfirmModal').style.display = 'none';
+        }
+
+        async function confirmDeleteExpense() {
+            const id = document.getElementById('delete-exp-id').value;
+            const token = localStorage.getItem('token');
+
+            try {
+                const res = await fetch(`/api/expenses/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    closeDeleteConfirmModal();
+                    fetchExpenses();
+                } else {
+                    const data = await res.json();
+                    alert('Error: ' + data.message);
+                }
+            } catch (err) {
+                alert('Connection error');
+            }
+        }
+
+        let sortField = 'date';
+        let sortOrder = 'desc';
+
+        function filterAndRenderTable() {
+            const searchQuery = (document.getElementById('expense-search')?.value || '').toLowerCase().trim();
+            const categoryFilter = document.getElementById('expense-category-filter')?.value || '';
+            
+            let filtered = [...activeExpensesGlobal];
+            
+            if (searchQuery) {
+                filtered = filtered.filter(e => 
+                    e.title.toLowerCase().includes(searchQuery) || 
+                    e.category.toLowerCase().includes(searchQuery)
+                );
+            }
+            
+            if (categoryFilter) {
+                filtered = filtered.filter(e => e.category === categoryFilter);
+            }
+            
+            // Sort
+            filtered.sort((a, b) => {
+                let valA = a[sortField];
+                let valB = b[sortField];
+                
+                if (sortField === 'date') {
+                    valA = new Date(a.date);
+                    valB = new Date(b.date);
+                } else if (sortField === 'amount') {
+                    valA = a.amount;
+                    valB = b.amount;
+                } else if (sortField === 'title') {
+                    valA = a.title.toLowerCase();
+                    valB = b.title.toLowerCase();
+                } else if (sortField === 'category') {
+                    valA = a.category.toLowerCase();
+                    valB = b.category.toLowerCase();
+                }
+                
+                if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+                if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+                return 0;
+            });
+            
+            const tbody = document.getElementById('expenses-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No transactions matched your search.</td></tr>';
+                return;
+            }
+            
+            filtered.forEach(exp => {
+                const d = new Date(exp.date);
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="text-sm">${d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                        <td class="font-medium text-primary">${exp.title}</td>
+                        <td><span class="badge badge-outline" style="border: 1px solid var(--border-color); color: var(--text-color);">${exp.category}</span></td>
+                        <td class="text-muted text-sm">Main Account</td>
+                        <td class="text-right font-semibold text-danger">₹${exp.amount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                        <td class="text-right">
+                            <div class="flex items-center justify-end gap-3">
+                                <button class="text-primary hover:text-success" style="background:none; border:none; cursor:pointer;" onclick="editExpense('${exp.id}')" title="Edit">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                                </button>
+                                <button class="text-muted hover:text-danger" style="background:none; border:none; cursor:pointer;" onclick="deleteExpense('${exp.id}')" title="Delete">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        window.toggleSort = function(field) {
+            if (sortField === field) {
+                sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortField = field;
+                sortOrder = 'asc';
+            }
+            ['date', 'title', 'category', 'amount'].forEach(f => {
+                const iconEl = document.getElementById(`sort-icon-${f}`);
+                if (iconEl) {
+                    if (f === sortField) {
+                        iconEl.innerText = sortOrder === 'asc' ? ' ↑' : ' ↓';
+                        iconEl.style.opacity = '1';
+                    } else {
+                        iconEl.innerText = '';
+                        iconEl.style.opacity = '0.3';
+                    }
+                }
+            });
+            filterAndRenderTable();
+        };
+    </script>
+    <script src="navigation.js" defer></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="page-title">Expense Tracker</div>
+                <div class="user-profile">
+                    <button id="theme-toggle" class="theme-toggle" title="Toggle Dark Mode" aria-label="Toggle Theme">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    </button>
+                    <div class="avatar">JD</div>
+                </div>
+            </header>
+
+            <!-- Expenses Content -->
+            <div class="content-wrapper">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl mb-1">Detailed Transactions</h2>
+                        <p class="text-muted">Master Ledger: Review and categorize all spending.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <a href="loans.html" class="btn btn-outline" style="text-decoration: none;">Manage Loans</a>
+                        <button class="btn btn-primary" onclick="showAddExpensePrompt()">+ Add Expense</button>
+                    </div>
+                </div>
+
+                <!-- Monthly Summary Cards -->
+                <div class="grid grid-cols-4 gap-4 mb-6">
+                    <div class="card" style="grid-column: span 2; background: linear-gradient(135deg, var(--surface-color), var(--bg-color));">
+                        <div class="flex justify-between items-center" style="height: 100%;">
+                            <div>
+                                <div class="text-sm text-muted mb-1">Total Spent This Month</div>
+                                <div class="text-3xl font-bold text-danger" id="total-spent">₹0.00</div>
+                            </div>
+                            <div id="pie-chart" style="width: 80px; height: 80px; border-radius: 50%; background: #E2E8F0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card flex flex-col justify-center">
+                        <div class="text-sm text-muted mb-1">Top Category</div>
+                        <div class="text-xl font-bold mb-1 truncate" id="top-category-name">None</div>
+                        <div class="text-sm text-danger" id="top-category-val">₹0.00 (0%)</div>
+                    </div>
+                    <div class="card flex flex-col justify-center">
+                        <div class="text-sm text-muted mb-1">Compared to Last Month</div>
+                        <div class="text-xl font-bold mb-1 text-success" id="comparison-val">₹0.00</div>
+                        <div class="text-sm text-success" id="comparison-pct">— 0% Change</div>
+                    </div>
+                </div>
+
+                <!-- Activity Table -->
+                <div class="card">
+                    <div class="table-filters" style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 200px;">
+                            <input type="text" id="expense-search" class="form-control" placeholder="Search by description or category...">
+                        </div>
+                        <div style="width: 180px;">
+                            <select id="expense-category-filter" class="form-control">
+                                <option value="">All Categories</option>
+                                <option value="Food">Food</option>
+                                <option value="Housing">Housing</option>
+                                <option value="Transportation">Transportation</option>
+                                <option value="Utilities">Utilities</option>
+                                <option value="Entertainment">Entertainment</option>
+                                <option value="Healthcare">Healthcare</option>
+                                <option value="Shopping">Shopping</option>
+                                <option value="Goals">Goals</option>
+                                <option value="Others">Others</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 2px solid var(--border-color); text-align: left;">
+                                    <th style="padding: 12px 8px; font-weight: 600; cursor: pointer;" onclick="toggleSort('date')">Date<span id="sort-icon-date"> ↓</span></th>
+                                    <th style="padding: 12px 8px; font-weight: 600; cursor: pointer;" onclick="toggleSort('title')">Title<span id="sort-icon-title" style="opacity:0.3;"></span></th>
+                                    <th style="padding: 12px 8px; font-weight: 600; cursor: pointer;" onclick="toggleSort('category')">Category<span id="sort-icon-category" style="opacity:0.3;"></span></th>
+                                    <th style="padding: 12px 8px; font-weight: 600;">Account</th>
+                                    <th class="text-right" style="padding: 12px 8px; font-weight: 600; cursor: pointer;" onclick="toggleSort('amount')">Amount<span id="sort-icon-amount" style="opacity:0.3;"></span></th>
+                                    <th class="text-right" style="padding: 12px 8px; font-weight: 600;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expenses-tbody">
+                                <!-- Populated dynamically via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Expense Modal -->
+    <div id="addExpenseModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div class="card" style="width: 100%; max-width: 400px; padding: 24px;">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="card-title m-0">Add New Expense</h3>
+                <button onclick="closeAddExpenseModal()" style="background: none; border: none; cursor: pointer; color: var(--text-color);">✕</button>
+            </div>
+            <form id="addExpenseForm" onsubmit="handleAddExpenseSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label" for="add-exp-title">Title</label>
+                    <input type="text" id="add-exp-title" class="form-control" placeholder="e.g. Milk & Eggs" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="add-exp-amount">Amount (₹)</label>
+                    <input type="number" id="add-exp-amount" class="form-control" placeholder="150" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="add-exp-category">Category</label>
+                    <select id="add-exp-category" class="form-control" required>
+                        <option value="Food">Food</option>
+                        <option value="Housing">Housing</option>
+                        <option value="Transportation">Transportation</option>
+                        <option value="Utilities">Utilities</option>
+                        <option value="Entertainment">Entertainment</option>
+                        <option value="Healthcare">Healthcare</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Goals">Goals</option>
+                        <option value="Others">Others</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="add-exp-date">Date</label>
+                    <input type="date" id="add-exp-date" class="form-control" required>
+                </div>
+                <div class="flex gap-3 justify-end mt-6">
+                    <button type="button" class="btn btn-outline" onclick="closeAddExpenseModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Expense</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Expense Modal -->
+    <div id="editExpenseModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div class="card" style="width: 100%; max-width: 400px; padding: 24px;">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="card-title m-0">Edit Expense</h3>
+                <button onclick="closeEditExpenseModal()" style="background: none; border: none; cursor: pointer; color: var(--text-color);">✕</button>
+            </div>
+            <form id="editExpenseForm" onsubmit="handleEditExpenseSubmit(event)">
+                <input type="hidden" id="edit-exp-id">
+                <div class="form-group">
+                    <label class="form-label" for="edit-exp-title">Title</label>
+                    <input type="text" id="edit-exp-title" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="edit-exp-amount">Amount (₹)</label>
+                    <input type="number" id="edit-exp-amount" class="form-control" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="edit-exp-category">Category</label>
+                    <select id="edit-exp-category" class="form-control" required>
+                        <option value="Food">Food</option>
+                        <option value="Housing">Housing</option>
+                        <option value="Transportation">Transportation</option>
+                        <option value="Utilities">Utilities</option>
+                        <option value="Entertainment">Entertainment</option>
+                        <option value="Healthcare">Healthcare</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Goals">Goals</option>
+                        <option value="Others">Others</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="edit-exp-date">Date</label>
+                    <input type="date" id="edit-exp-date" class="form-control" required>
+                </div>
+                <div class="flex gap-3 justify-end mt-6">
+                    <button type="button" class="btn btn-outline" onclick="closeEditExpenseModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteConfirmModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div class="card" style="width: 100%; max-width: 400px; padding: 24px;">
+            <h3 class="card-title mb-4">Delete Expense</h3>
+            <p class="mb-6">Are you sure you want to delete this expense? This action cannot be undone.</p>
+            <input type="hidden" id="delete-exp-id">
+            <div class="flex gap-3 justify-end">
+                <button type="button" class="btn btn-outline" onclick="closeDeleteConfirmModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" style="background-color: var(--danger); border-color: var(--danger);" onclick="confirmDeleteExpense()">Delete</button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script>
+        (function() {
+            if (localStorage.getItem('dark-mode') === 'enabled') {
+                document.documentElement.classList.add('dark-mode');
+            }
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investment Strategy - FinTrack</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .risk-btn {
+            transition: all 0.2s ease;
+        }
+        details summary::-webkit-details-marker {
+            display: inline-block;
+            margin-right: 5px;
+        }
+        details summary {
+            list-style: auto;
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const themeToggle = document.getElementById('theme-toggle');
+            if (themeToggle) {
+                const updateIcon = (isDark) => {
+                    themeToggle.innerHTML = isDark 
+                        ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`
+                        : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+                };
+
+                updateIcon(document.documentElement.classList.contains('dark-mode'));
+
+                themeToggle.addEventListener('click', () => {
+                    document.documentElement.classList.toggle('dark-mode');
+                    const isDark = document.documentElement.classList.contains('dark-mode');
+                    localStorage.setItem('dark-mode', isDark ? 'enabled' : 'disabled');
+                    updateIcon(isDark);
+                });
+            }
+
+            // Sync User Info
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (user && document.querySelector('.avatar')) {
+                document.querySelector('.avatar').innerText = user.name.split(' ').map(n => n[0]).join('').toUpperCase();
+            }
+
+            // Handle Logout
+            document.querySelectorAll('a').forEach(link => {
+                if (link.innerText.includes('Log Out')) {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                        window.location.href = 'login.html';
+                    });
+                }
+            });
+
+            // --- AI Advisor Logic ---
+            let currentRisk = 'Moderate'; 
+            const riskBtns = document.querySelectorAll('.risk-btn');
+            
+            riskBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    riskBtns.forEach(b => {
+                        b.classList.remove('btn-primary');
+                        b.classList.add('btn-outline');
+                    });
+                    e.currentTarget.classList.remove('btn-outline');
+                    e.currentTarget.classList.add('btn-primary');
+                    currentRisk = e.currentTarget.dataset.risk;
+                    // Recalculate instantly
+                    generateStrategy();
+                });
+            });
+
+            // Initialize Chart
+            const ctx = document.getElementById('allocationChart').getContext('2d');
+            const style = getComputedStyle(document.body);
+            let primaryColor = style.getPropertyValue('--primary-color').trim() || '#387ed1';
+            let successColor = style.getPropertyValue('--success').trim() || '#10B981';
+            let infoColor = style.getPropertyValue('--info').trim() || '#3b82f6';
+            let warningColor = style.getPropertyValue('--warning').trim() || '#F59E0B';
+            let purpleColor = '#8b5cf6';
+
+            let allocationChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Equity', 'Mutual Funds', 'Gold & Silver', 'Real Estate', 'Bonds / Fixed Income'],
+                    datasets: [{
+                        data: [0, 0, 0, 0, 0], 
+                        backgroundColor: [primaryColor, purpleColor, warningColor, successColor, infoColor],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ' ' + context.label + ': ' + context.parsed + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const form = document.getElementById('recommendation-form');
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                generateStrategy();
+            });
+
+            // Dynamic Inputs Triggers
+            document.getElementById('userAge').addEventListener('change', generateStrategy);
+            document.getElementById('userGoal').addEventListener('change', generateStrategy);
+
+            const calculateAllocation = (ageRange, goal, risk) => {
+                let equity = 35;
+                let mf = 25;
+                let gold = 10;
+                let re = 10;
+                let bonds = 20;
+
+                if (ageRange === '18-25') {
+                    equity = 45; mf = 35; gold = 5; re = 5; bonds = 10;
+                } else if (ageRange === '26-35') {
+                    equity = 40; mf = 30; gold = 10; re = 10; bonds = 10;
+                } else if (ageRange === '36-45') {
+                    equity = 30; mf = 25; gold = 10; re = 15; bonds = 20;
+                } else if (ageRange === '46-60') {
+                    equity = 20; mf = 20; gold = 10; re = 15; bonds = 35;
+                } else if (ageRange === '60+') {
+                    equity = 10; mf = 10; gold = 10; re = 10; bonds = 60;
+                }
+
+                // Adjust based on Risk Profile
+                if (risk === 'Aggressive') {
+                    equity += 15;
+                    mf += 5;
+                    bonds -= 20;
+                } else if (risk === 'Conservative') {
+                    equity -= 15;
+                    mf -= 5;
+                    bonds += 20;
+                }
+
+                // Adjust based on Financial Goal
+                if (goal === 'Wealth Accumulation') {
+                    equity += 10;
+                    mf += 5;
+                    bonds -= 15;
+                } else if (goal === 'Retirement Planning') {
+                    equity -= 5;
+                    bonds += 5;
+                } else if (goal === 'Child Education') {
+                    equity = Math.min(equity, 25);
+                    mf = Math.min(mf, 25);
+                    bonds = Math.max(bonds, 30);
+                } else if (goal === 'Home Purchase') {
+                    equity = Math.min(equity, 20);
+                    mf = Math.min(mf, 20);
+                    bonds = Math.max(bonds, 40);
+                } else if (goal === 'Passive Income') {
+                    re = Math.max(re, 25);
+                    bonds = Math.max(bonds, 30);
+                    equity = Math.min(equity, 20);
+                    mf = Math.min(mf, 15);
+                } else if (goal === 'Capital Preservation') {
+                    bonds = Math.max(bonds, 55);
+                    equity = Math.min(equity, 10);
+                    mf = Math.min(mf, 15);
+                    gold = Math.max(gold, 15);
+                    re = Math.min(re, 10);
+                }
+
+                equity = Math.max(5, equity);
+                mf = Math.max(5, mf);
+                gold = Math.max(5, gold);
+                re = Math.max(5, re);
+                bonds = Math.max(5, bonds);
+
+                const total = equity + mf + gold + re + bonds;
+                let eqPercent = Math.round((equity / total) * 100);
+                let mfPercent = Math.round((mf / total) * 100);
+                let goldPercent = Math.round((gold / total) * 100);
+                let rePercent = Math.round((re / total) * 100);
+                let bondsPercent = 100 - (eqPercent + mfPercent + goldPercent + rePercent);
+
+                if (bondsPercent < 5) {
+                    const diff = 5 - bondsPercent;
+                    bondsPercent = 5;
+                    eqPercent -= diff;
+                }
+
+                return {
+                    equity: eqPercent,
+                    mutualFunds: mfPercent,
+                    goldSilver: goldPercent,
+                    realEstate: rePercent,
+                    bondsFixedIncome: bondsPercent
+                };
+            };
+
+            function generateStrategy() {
+                const ageRange = document.getElementById('userAge').value;
+                const goal = document.getElementById('userGoal').value;
+                
+                const alloc = calculateAllocation(ageRange, goal, currentRisk);
+                
+                // 1. Update Chart Data
+                allocationChart.data.datasets[0].data = [
+                    alloc.equity, 
+                    alloc.mutualFunds, 
+                    alloc.goldSilver, 
+                    alloc.realEstate, 
+                    alloc.bondsFixedIncome
+                ];
+                allocationChart.update();
+
+                // 2. Compute sub-allocations helper
+                const calcSubAlloc = (total, shares) => {
+                    const sumShares = shares.reduce((a, b) => a + b, 0);
+                    let allocated = 0;
+                    const result = shares.map((s, idx) => {
+                        if (idx === shares.length - 1) {
+                            return total - allocated;
+                        }
+                        const amt = Math.round((s / sumShares) * total);
+                        allocated += amt;
+                        return amt;
+                    });
+                    return result;
+                };
+
+                // Equity sub-allocations
+                let eqShares = [50, 30, 20];
+                if (currentRisk === 'Aggressive') eqShares = [30, 40, 30];
+                if (currentRisk === 'Conservative') eqShares = [70, 20, 10];
+                const eqSub = calcSubAlloc(alloc.equity, eqShares);
+
+                // Mutual Funds sub-allocations
+                let mfShares = [40, 30, 10, 20];
+                if (currentRisk === 'Aggressive') mfShares = [30, 30, 30, 10];
+                if (currentRisk === 'Conservative') mfShares = [50, 20, 5, 25];
+                const mfSub = calcSubAlloc(alloc.mutualFunds, mfShares);
+
+                // Gold & Silver sub-allocations
+                const goldSub = calcSubAlloc(alloc.goldSilver, [80, 20]);
+
+                // Real Estate sub-allocations
+                let reShares = [50, 50];
+                if (currentRisk === 'Conservative') reShares = [70, 30];
+                if (currentRisk === 'Aggressive') reShares = [40, 60];
+                const reSub = calcSubAlloc(alloc.realEstate, reShares);
+
+                // Bonds sub-allocations
+                let bondShares = [40, 30, 30];
+                if (currentRisk === 'Conservative') bondShares = [50, 20, 30];
+                if (currentRisk === 'Aggressive') bondShares = [30, 40, 30];
+                const bondSub = calcSubAlloc(alloc.bondsFixedIncome, bondShares);
+
+                // 3. Render Collapsible List
+                const listContainer = document.getElementById('allocation-list-container');
+                listContainer.innerHTML = `
+                    <details class="mb-2" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--surface-color); overflow: hidden; padding: 10px;" open>
+                        <summary style="font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 12px; height: 12px; border-radius: 2px; background: ${primaryColor};"></div>
+                                <span>Equity</span>
+                            </span>
+                            <span class="font-bold text-sm">${alloc.equity}%</span>
+                        </summary>
+                        <div style="margin-top: 10px; padding-left: 20px; font-size: 0.85rem; color: var(--text-secondary); border-top: 1px dashed var(--border-color); padding-top: 8px;">
+                            <ul style="margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; list-style: none;">
+                                <li style="display:flex; justify-content:space-between"><span>• Large Cap Stocks</span><strong>${eqSub[0]}%</strong></li>
+                                <li style="display:flex; justify-content:space-between"><span>• Mid Cap Stocks</span><strong>${eqSub[1]}%</strong></li>
+                                <li style="display:flex; justify-content:space-between"><span>• Small Cap Stocks</span><strong>${eqSub[2]}%</strong></li>
+                            </ul>
+                        </div>
+                    </details>
+
+                    <details class="mb-2" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--surface-color); overflow: hidden; padding: 10px;">
+                        <summary style="font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 12px; height: 12px; border-radius: 2px; background: ${purpleColor};"></div>
+                                <span>Mutual Funds</span>
+                            </span>
+                            <span class="font-bold text-sm">${alloc.mutualFunds}%</span>
+                        </summary>
+                        <div style="margin-top: 10px; padding-left: 20px; font-size: 0.85rem; color: var(--text-secondary); border-top: 1px dashed var(--border-color); padding-top: 8px;">
+                            <ul style="margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; list-style: none;">
+                                <li style="display:flex; justify-content:space-between"><span>• Large Cap Funds</span><strong>${mfSub[0]}%</strong></li>
+                                <li style="display:flex; justify-content:space-between"><span>• Mid Cap Funds</span><strong>${mfSub[1]}%</strong></li>
+                                <li style="display:flex; justify-content:space-between"><span>• Small Cap Funds</span><strong>${mfSub[2]}%</strong></li>
+                                <li style="display:flex; justify-content:space-between"><span>• Index Funds</span><strong>${mfSub[3]}%</strong></li>
+                            </ul>
+                        </div>
+                    </details>
+
+                    <details class="mb-2" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--surface-color); overflow: hidden; padding: 10px;">
+                        <summary style="font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 12px; height: 12px; border-radius: 2px; background: ${warningColor};"></div>
+                                <span>Gold & Silver</span>
+                            </span>
+                            <span class="font-bold text-sm">${alloc.goldSilver}%</span>
+                        </summary>
+                        <div style="margin-top: 10px; padding-left: 20px; font-size: 0.85rem; color: var(--text-secondary); border-top: 1px dashed var(--border-color); padding-top: 8px;">
+                            <ul style="margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; list-style: none;">
+                                <li style="display:flex; justify-content:space-between"><span>• Gold ETFs / SGBs</span><strong>${goldSub[0]}%</strong></li>
+                                <li style="display:flex; justify-content:space-between"><span>• Silver ETFs</span><strong>${goldSub[1]}%</strong></li>
+                            </ul>
+                        </div>
+                    </details>
+
+                    <details class="mb-2" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--surface-color); overflow: hidden; padding: 10px;">
+                        <summary style="font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 12px; height: 12px; border-radius: 2px; background: ${successColor};"></div>
+                                <span>Real Estate</span>
+                            </span>
+                            <span class="font-bold text-sm">${alloc.realEstate}%</span>
+                        </summary>
+                        <div style="margin-top: 10px; padding-left: 20px; font-size: 0.85rem; color: var(--text-secondary); border-top: 1px dashed var(--border-color); padding-top: 8px;">
+                            <ul style="margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; list-style: none;">
+                                <li style="display:flex; justify-content:space-between"><span>• REITs</span><strong>${reSub[0]}%</strong></li>
+                                <li style="display:flex; justify-content:space-between"><span>• Direct Real Estate Allocation</span><strong>${reSub[1]}%</strong></li>
+                            </ul>
+                        </div>
+                    </details>
+
+                    <details class="mb-2" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--surface-color); overflow: hidden; padding: 10px;">
+                        <summary style="font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 12px; height: 12px; border-radius: 2px; background: ${infoColor};"></div>
+                                <span>Bonds / Fixed Income</span>
+                            </span>
+                            <span class="font-bold text-sm">${alloc.bondsFixedIncome}%</span>
+                        </summary>
+                        <div style="margin-top: 10px; padding-left: 20px; font-size: 0.85rem; color: var(--text-secondary); border-top: 1px dashed var(--border-color); padding-top: 8px;">
+                            <ul style="margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; list-style: none;">
+                                <li style="display:flex; justify-content:space-between"><span>• Government Bonds</span><strong>${bondSub[0]}%</strong></li>
+                                <li style="display:flex; justify-content:space-between"><span>• Corporate Bonds</span><strong>${bondSub[1]}%</strong></li>
+                                <li style="display:flex; justify-content:space-between"><span>• Fixed Deposits</span><strong>${bondSub[2]}%</strong></li>
+                            </ul>
+                        </div>
+                    </details>
+                `;
+
+                // 4. Generate AI Insights Text
+                let riskText = '';
+                if (currentRisk === 'Conservative') {
+                    riskText = `<strong>Risk Explanation:</strong> Your conservative risk tolerance emphasizes capital preservation. The allocation is designed to protect your capital from market swings by favoring stable fixed income instruments, high-quality large-cap equities, and gold.`;
+                } else if (currentRisk === 'Moderate') {
+                    riskText = `<strong>Risk Explanation:</strong> Your moderate risk profile seeks balanced growth. The strategy divides capital between growth-oriented equity/mutual funds and defensive assets like bonds and gold to achieve stable returns with manageable volatility.`;
+                } else {
+                    riskText = `<strong>Risk Explanation:</strong> Your aggressive risk tolerance prioritizes long-term growth and capital appreciation. The portfolio allocates heavily to equities, including higher exposure to mid-cap and small-cap assets to maximize returns over time.`;
+                }
+
+                // Find dominant asset class
+                let dominantVal = 0;
+                let dominantClass = '';
+                Object.keys(alloc).forEach(k => {
+                    if (alloc[k] > dominantVal) {
+                        dominantVal = alloc[k];
+                        dominantClass = k;
+                    }
+                });
+
+                let classWord = 'Bonds / Fixed Income';
+                if (dominantClass === 'equity') classWord = 'Equity';
+                else if (dominantClass === 'mutualFunds') classWord = 'Mutual Funds';
+                else if (dominantClass === 'goldSilver') classWord = 'Gold & Silver';
+                else if (dominantClass === 'realEstate') classWord = 'Real Estate';
+
+                let ageInsightText = '';
+                if (ageRange === '18-25') ageInsightText = 'is 18–25 years old (allowing taking higher growth risks)';
+                else if (ageRange === '26-35') ageInsightText = 'is 26–35 years old (favoring primary growth assets)';
+                else if (ageRange === '36-45') ageInsightText = 'is 36–45 years old (balancing growing wealth with intermediate protection)';
+                else if (ageRange === '46-60') ageInsightText = 'is 46–60 years old (approaching transition periods)';
+                else ageInsightText = 'is 60+ years old (requiring high stability and income payout)';
+
+                let reasoningText = `<br><br><strong>Why This Allocation Was Recommended:</strong> This portfolio allocates more capital to large-cap equities and index funds because the investor ${ageInsightText}, has a ${currentRisk.toLowerCase()} risk profile, and is planning for ${goal.toLowerCase()}.`;
+
+                document.getElementById('ai-insights-text').innerHTML = riskText + reasoningText;
+                document.getElementById('ai-insights-block').style.display = 'block';
+            }
+
+            // Auto-trigger on page load to display dynamic calculated values instead of generic placeholders
+            generateStrategy();
+        });
+    </script>
+    <script src="navigation.js" defer></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="page-title">Personalized Suggestions</div>
+                <div class="user-profile">
+                    <button id="theme-toggle" class="theme-toggle" title="Toggle Dark Mode" aria-label="Toggle Theme">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                    </button>
+                    <div class="avatar">JD</div>
+                </div>
+            </header>
+
+            <!-- Recommendation Content -->
+            <div class="content-wrapper">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl mb-1">Investment Strategy Planner</h2>
+                        <p class="text-muted">Generate a customized portfolio based on your age, risk profile, and goals.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <!-- Form Section -->
+                    <div class="card">
+                        <div class="card-header border-b pb-4 mb-4"
+                            style="border-bottom: 1px solid var(--border-color);">
+                            <h3 class="card-title">Define Your Profile</h3>
+                        </div>
+                        <form id="recommendation-form">
+                            <!-- Selectable Age Groups -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium mb-2" for="userAge">Current Age</label>
+                                <select id="userAge" class="form-input" style="width: 100%;" required>
+                                    <option value="18-25">18–25</option>
+                                    <option value="26-35" selected>26–35</option>
+                                    <option value="36-45">36–45</option>
+                                    <option value="46-60">46–60</option>
+                                    <option value="60+">60+</option>
+                                </select>
+                            </div>
+
+                            <!-- Primary Goals Selection -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium mb-2" for="userGoal">Primary Financial Goal</label>
+                                <select id="userGoal" class="form-input" style="width: 100%;" required>
+                                    <option value="Wealth Accumulation" selected>Wealth Accumulation</option>
+                                    <option value="Retirement Planning">Retirement Planning</option>
+                                    <option value="Child Education">Child Education</option>
+                                    <option value="Home Purchase">Home Purchase</option>
+                                    <option value="Passive Income">Passive Income</option>
+                                    <option value="Capital Preservation">Capital Preservation</option>
+                                </select>
+                            </div>
+
+                            <!-- Risk Profiles Selection -->
+                            <div class="mb-6">
+                                <label class="block text-sm font-medium mb-2">Risk Tolerance</label>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <button type="button" class="btn btn-outline risk-btn" data-risk="Conservative"
+                                        style="font-size: 0.8rem; padding: 0.5rem;">Conservative</button>
+                                    <button type="button" class="btn btn-primary risk-btn" data-risk="Moderate"
+                                        style="font-size: 0.8rem; padding: 0.5rem;">Moderate</button>
+                                    <button type="button" class="btn btn-outline risk-btn" data-risk="Aggressive"
+                                        style="font-size: 0.8rem; padding: 0.5rem;">Aggressive</button>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" style="width: 100%;">Generate Strategy</button>
+                        </form>
+                    </div>
+
+                    <!-- Result Section -->
+                    <div class="card" id="result-card">
+                        <div class="card-header border-b pb-4 mb-4"
+                            style="border-bottom: 1px solid var(--border-color);">
+                            <h3 class="card-title">Recommended Allocation</h3>
+                        </div>
+
+                        <!-- DYNAMIC CHART JS CANVAS -->
+                        <div style="width: 200px; height: 200px; margin: 0 auto 1.5rem auto;">
+                            <canvas id="allocationChart"></canvas>
+                        </div>
+
+                        <!-- Dynamic Collapsible Asset Class Breakdowns -->
+                        <div id="allocation-list-container" class="flex-col gap-3">
+                            <!-- Rendered dynamically by generateStrategy() -->
+                        </div>
+
+                        <!-- AI Insights Block -->
+                        <div id="ai-insights-block" class="mt-6 p-4 rounded-md" style="display: none; background: rgba(56, 126, 209, 0.05); border: 1px solid rgba(56, 126, 209, 0.2);">
+                            <p class="text-sm text-muted" id="ai-insights-text" style="line-height: 1.5;"></p>
+                        </div>
+
+                        <button class="btn btn-outline" style="width: 100%; margin-top: 1.5rem;">Save This Portfolio</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+
+</html>
