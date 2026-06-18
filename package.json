@@ -1,0 +1,13 @@
+{
+  "name": "fintrack",
+  "version": "1.0.0",
+  "description": "FinTrack Personal Wealth Management Platform",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "build": "npm install --prefix backend"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
